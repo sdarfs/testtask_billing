@@ -1,6 +1,7 @@
 package com.billing.testtask.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 import jakarta.validation.constraints.NotBlank;
@@ -35,8 +36,10 @@ public class TaskModel {
     private Long tagId;
     private Long typeId;
 
+    @JsonIgnore
     @Getter
     private Integer typePriority;
+    @JsonIgnore
     @Getter
     private String namePriority;
 

@@ -18,31 +18,41 @@ import com.billing.testtask.service.TagService;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
-
+/**
+ * Реализация сервиса для работы с тегами и связанными задачами
+ */
 @Service
 public class TagServiceImpl implements TagService {
-    @Autowired
-    private TagRepository repository;
+    private final TagRepository repository;
     private final TaskRepository taskRepository;
 
-
-    public TagServiceImpl(TaskRepository taskRepository) {
+    @Autowired
+    public TagServiceImpl(TagRepository repository, TaskRepository taskRepository) {
+        this.repository = repository;
         this.taskRepository = taskRepository;
     }
 
-
-
-    public TagEntity getTagsWithTasks() {
+    /**
+     * Получает все теги с связанными задачами
+     *
+     * @return сущность TagEntity с тегами и задачами
+     */
+    public List<TagEntity> getTagsWithTasks() {
         return repository.findTagsWithTasks();
     }
 
-
+    /**
+     * Получает тег с отсортированными по приоритету типа задачами
+     *
+     * @param tagId идентификатор тега
+     * @return DTO с информацией о теге и отсортированными задачами
+     * @throws EntityNotFoundException если тег не найден
+     */
     public TagWithTask getTagWithSortedTasks(Long tagId) {
         TagEntity tag = repository.findById(tagId)
-                .orElseThrow(() -> new EntityNotFoundException("Tag not found with id: " + tagId));
+                .orElseThrow(() -> new EntityNotFoundException("Тег с id=" + tagId + " не найден"));
 
         List<TaskEntity> tasks = taskRepository.findByTagIdOrderByTypePriority(tagId);
 
@@ -55,6 +65,12 @@ public class TagServiceImpl implements TagService {
                 .build();
     }
 
+    /**
+     * Конвертирует сущность задачи в DTO с основной информацией
+     *
+     * @param entity сущность задачи
+     * @return DTO с информацией о задаче
+     */
     private GetTaskInfo convertToTaskSimpleDto(TaskEntity entity) {
         return GetTaskInfo.builder()
                 .id(entity.getId())
@@ -62,12 +78,15 @@ public class TagServiceImpl implements TagService {
                 .description(entity.getDescription())
                 .taskDate(entity.getTaskDate())
                 .typeTitle(entity.getType() != null ? entity.getType().getTitle() : "Без типа")
-
                 .build();
     }
 
-
-
+    /**
+     * Сохраняет или обновляет тег
+     *
+     * @param tag модель тега для сохранения
+     * @return сохраненная модель тега с обновленным ID и задачами
+     */
     @CachePut(cacheNames = "tagsCache", key = "#tag.id")
     @Override
     public TagModel save(TagModel tag) {
@@ -77,58 +96,71 @@ public class TagServiceImpl implements TagService {
                 .build();
 
         if (tag.getId() != null) {
-            Optional<TagEntity> optionalTagEntity = repository.findById(tag.getId());
-            if (optionalTagEntity.isPresent()) {
+            repository.findById(tag.getId()).ifPresent(existingTag -> {
                 tagEntity.setId(tag.getId());
                 tagEntity.setTitle(tag.getTitle());
-                tagEntity.getTasks().addAll(optionalTagEntity.get().getTasks());
-            }
+                tagEntity.getTasks().addAll(existingTag.getTasks());
+            });
         }
+
         repository.save(tagEntity);
-
         tag.setId(tagEntity.getId());
-        List<TaskModel> tasks = new ArrayList<>();
-        for (TaskEntity task : tagEntity.getTasks())
-            tasks.add(TaskModel.builder()
-                    .id(task.getId())
-                    .name(task.getName())
-                    .description(task.getDescription())
-                    .taskDate(task.getTaskDate())
-                    .tagId(tagEntity.getId())
-                    .build());
-        tag.setTasks(tasks);
 
-        return tag;
-    }
-
-    @CacheEvict(cacheNames = "tagsCache", key = "#id")
-    @Override
-    public void delete(Long id) {
-        repository.deleteById(id);
-    }
-
-    @Cacheable(cacheNames = "tagsCache", key = "#id")
-    @Override
-    public TagModel getAllTaskByTag(Long id) {
-        Optional<TagEntity> tagEntity = repository.findById(id);
-        if (tagEntity.isPresent()) {
-            List<TaskModel> tasks = new ArrayList<>();
-            for (TaskEntity task : tagEntity.get().getTasks())
-                tasks.add(TaskModel.builder()
+        List<TaskModel> tasks = tagEntity.getTasks().stream()
+                .map(task -> TaskModel.builder()
                         .id(task.getId())
                         .name(task.getName())
                         .description(task.getDescription())
                         .taskDate(task.getTaskDate())
-                        .tagId(tagEntity.get().getId())
-                        .build());
+                        .tagId(tagEntity.getId())
+                        .build())
+                .collect(Collectors.toList());
 
-            return TagModel.builder()
-                    .id(tagEntity.get().getId())
-                    .title(tagEntity.get().getTitle())
-                    .tasks(tasks)
-                    .build();
-        } else
-            throw new EntityNotFoundException("Tag[id=" + id + "] not found in database!");
+        tag.setTasks(tasks);
+        return tag;
+    }
 
+    /**
+     * Удаляет тег по идентификатору
+     *
+     * @param id идентификатор тега для удаления
+     */
+    @CacheEvict(cacheNames = "tagsCache", key = "#id")
+    @Override
+    public void delete(Long id) {
+        repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Тег[id=" + id + "] не найден в базе данных"));
+        repository.deleteById(id);
+    }
+
+    /**
+     * Получает тег со всеми связанными задачами
+     *
+     * @param id идентификатор тега
+     * @return модель тега с задачами
+     * @throws EntityNotFoundException если тег не найден
+     */
+    @Cacheable(cacheNames = "tagsCache", key = "#id")
+    @Override
+    public TagModel getAllTaskByTag(Long id) {
+        TagEntity tagEntity = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Тег[id=" + id + "] не найден в базе данных"));
+
+        List<TaskModel> tasks = tagEntity.getTasks().stream()
+                .map(task -> TaskModel.builder()
+                        .id(task.getId())
+                        .name(task.getName())
+                        .description(task.getDescription())
+                        .taskDate(task.getTaskDate())
+                        .tagId(tagEntity.getId())
+                        .typeId(task.getType().getId())
+                        .build())
+                .collect(Collectors.toList());
+
+        return TagModel.builder()
+                .id(tagEntity.getId())
+                .title(tagEntity.getTitle())
+                .tasks(tasks)
+                .build();
     }
 }

@@ -25,13 +25,13 @@ public class WebSecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
+                        .requestMatchers("/tag", "/tag/").hasRole("ADMIN")
+                        .requestMatchers("/task", "/task/").hasRole("ADMIN")
+                        .requestMatchers("/v3/api-docs/**",
                                 "/swagger-ui.html",
-                                "/webjars/**"
-                        ).permitAll()
-                        .anyRequest().authenticated()
+                                "/swagger-ui/**"
+                                ).permitAll()
+                        .anyRequest().permitAll()
                 )
                 .httpBasic(Customizer.withDefaults());
 

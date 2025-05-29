@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -23,9 +24,11 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * CRUD операции по задачам
+ * REST контроллер для управления задачами.
+ * Предоставляет CRUD операции и дополнительные методы для работы с задачами.
  */
 @RestController
+@RequestMapping("/api/tasks")
 @Tag(name = "Task API", description = "Операции с задачами")
 public class TaskController {
     @Autowired
@@ -35,40 +38,50 @@ public class TaskController {
     private String uploadPath;
 
     /**
-     * GET-запрос на получение данных обо всех существующих задачах
-     * @return ответ-сущность со статусом обработки и сообщением
+     * Получает список всех задач.
+     *
+     * @return ответ-сущность всех задач
      */
     @Operation(summary = "Получить все задачи",
             description = "Возвращает список всех задач",
             responses = @ApiResponse(responseCode = "200", description = "Успешный запрос"))
-    @GetMapping("/tasks")
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<TaskModel>> getAllTasks() {
         return new ResponseEntity<>(taskService.getAllTasks(), HttpStatus.OK);
     }
+
+    /**
+     * Получает страницу с задачами.
+     *
+     * @param page номер страницы (по умолчанию 0)
+     * @param size размер страницы (по умолчанию 10)
+     * @return страница с задачами
+     */
     @Operation(summary = "Пагинация для метода получения всех задач",
             description = "Возвращает список всех задач",
             responses = @ApiResponse(responseCode = "200", description = "Успешный запрос"))
-    @GetMapping("/tasks/pagination")
-    public Page<TaskModel> getAllTasks(
+    @GetMapping("/pagination")
+    public ResponseEntity<Page<TaskModel>> getAllTasks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return taskService.getAllTasks(PageRequest.of(page, size));
+        return ResponseEntity.ok(taskService.getAllTasks(PageRequest.of(page, size)));
     }
 
     /**
-     * POST-запрос на создание новой задачи
-     * POST-запрос на редактирование новой задачи
-     * @param taskModel     модель данных задачи
-     * @param bindingResult ошибки валидации
-     * @return ответ-сущность со статусом обработки и сообщением
+     * Создает или редактирует задачу.
+     *
+     * @param taskModel данные задачи
+     * @param bindingResult результат валидации
+     * @return созданная задача
      */
     @Operation(summary = "Создать или обновить задачу",
             description = "Создает новую задачу или обновляет существующую",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Задача успешно создана/обновлена"),
-                    @ApiResponse(responseCode = "400", description = "Ошибка валидации")
+                    @ApiResponse(responseCode = "500", description = "Ошибка сервера.")
             })
-    @PostMapping("/task")
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> createTask(
             @RequestBody @Valid TaskModel taskModel,
             BindingResult bindingResult
@@ -80,9 +93,10 @@ public class TaskController {
     }
 
     /**
-     * DELETE-запрос удаления задачи по идентификатору
+     * Удаляет задачу по идентификатору.
+     *
      * @param id идентификатор задачи
-     * @return ответ-сущность со статусом обработки и id удаленной задачи + соответствующее сообщение
+     * @return сообщение об успешном удалении
      */
     @Operation(summary = "Удалить задачу",
             description = "Удаляет задачу по ID",
@@ -90,45 +104,43 @@ public class TaskController {
                     @ApiResponse(responseCode = "200", description = "Задача успешно удалена"),
                     @ApiResponse(responseCode = "404", description = "Задача не найдена")
             })
-    @DeleteMapping("/task/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteTask(@PathVariable("id") Long id) {
         taskService.delete(id);
         return new ResponseEntity<>("Task with ID " + id + " was successfully deleted", HttpStatus.OK);
     }
 
     /**
-     * GET-запрос на получение задач за определенную дату, отсортированных по приоритету
-     * @param date дата в формате yyyy-MM-dd
-     * @return список задач с сортировкой по приоритету (по убыванию)
+     * Получает задачи за указанную дату, отсортированные по приоритету.
+     *
+     * @param date дата для фильтрации
+     * @return список задач с сортировкой по приоритету
      */
     @Operation(summary = "Получить задачи по дате",
             description = "Возвращает задачи за указанную дату, отсортированные по приоритету",
             responses = @ApiResponse(responseCode = "200", description = "Успешный запрос"))
-    @GetMapping("/tasks/by-date")
+    @GetMapping("/by-date")
     public ResponseEntity<List<GetTaskInfo>> getTasksByDateSortedByPriority(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<GetTaskInfo> tasks = taskService.getTasksByDateSortedByPriority(date);
         return new ResponseEntity<>(tasks, HttpStatus.OK);
     }
 
-
-
-
     /**
-     * POST-запрос: загрузка файла-вложения для задачи
+     * Загружает файл для задачи.
      *
-     * @param id   идентификатор задачи
+     * @param id идентификатор задачи
      * @param file загружаемый файл
-     * @return ответ-сущность со статусом обработки и соответствующим сообщением
-     * @throws IOException
+     * @return сообщение о результате загрузки
+     * @throws IOException при ошибках работы с файлом
      */
     @Operation(summary = "Загрузить файл для задачи",
             description = "Загружает файл-вложение для указанной задачи",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Файл успешно загружен"),
-                    @ApiResponse(responseCode = "400", description = "Файл не предоставлен")
+                    @ApiResponse(responseCode = "500", description = "Файл не предоставлен.Ошибка сервера")
             })
-    @PostMapping("/task/{id}/upload")
+    @PostMapping("/{id}/upload")
     public ResponseEntity<String> uploadFile(
             @PathVariable("id") Long id,
             @RequestParam("file") MultipartFile file
