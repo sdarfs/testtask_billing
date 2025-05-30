@@ -23,6 +23,9 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+
+                .requiresChannel(channel ->
+                        channel.anyRequest().requiresSecure())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/tag", "/tag/").hasRole("ADMIN")
@@ -37,7 +40,6 @@ public class WebSecurityConfig {
 
         return http.build();
     }
-
 
     /**
      * Конфигурация менеджера аутентификации
@@ -60,7 +62,5 @@ public class WebSecurityConfig {
 
         return new InMemoryUserDetailsManager(user, admin);
     }
-
-
 
 }
