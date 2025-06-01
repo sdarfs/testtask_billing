@@ -3,15 +3,17 @@ package com.billing.testtask.service.impl;
 import com.billing.testtask.dto.GetTaskInfo;
 import com.billing.testtask.entity.TagEntity;
 import com.billing.testtask.entity.TaskEntity;
+import com.billing.testtask.entity.TypeEntity;
 import com.billing.testtask.model.TaskModel;
+import com.billing.testtask.repository.TagRepository;
 import com.billing.testtask.repository.TaskRepository;
+import com.billing.testtask.repository.TypeRepository;
 import com.billing.testtask.service.TaskService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -21,31 +23,66 @@ import java.util.stream.Collectors;
  * Реализация сервиса для работы с задачами.
  */
 @Service
-@Transactional
 public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
+    private final TagRepository tagRepository;
+    private final TypeRepository typeRepository;
 
     @Autowired
-    public TaskServiceImpl(TaskRepository taskRepository) {
+    public TaskServiceImpl(TaskRepository taskRepository, TagRepository tagRepository, TypeRepository typeRepository) {
         this.taskRepository = taskRepository;
+        this.tagRepository = tagRepository;
+        this.typeRepository = typeRepository;
     }
+
 
     @Override
     public Long save(TaskModel task) {
+        // Валидация входных данных
         if (task == null) {
-            throw new IllegalArgumentException("Task model cannot be null");
+            throw new IllegalArgumentException("Задача не может быть пустой");
+        }
+        if (task.getTagId() == null) {
+            throw new IllegalArgumentException("Тег ID обязателен");
+        }
+        if (task.getTypeId() == null) {
+            throw new IllegalArgumentException("Тип задачи обязателен");
         }
 
-        TaskEntity entity = convertToEntity(task);
-        TaskEntity savedEntity = taskRepository.save(entity);
-        return savedEntity.getId();
+        // Получение связанных сущностей
+        TagEntity tag = tagRepository.findById(task.getTagId())
+                .orElseThrow(() -> new EntityNotFoundException("Тег не найден"));
+
+        TypeEntity type = typeRepository.findById(task.getTypeId())
+                .orElseThrow(() -> new EntityNotFoundException("Тип не найден"));
+
+        // Создание/обновление задачи
+        TaskEntity entity;
+        if (task.getId() != null) {
+            entity = taskRepository.findById(task.getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Задача " + task.getId() + " не найдена"));
+            entity.setName(task.getName());
+            entity.setDescription(task.getDescription());
+            entity.setTaskDate(task.getTaskDate());
+        } else {
+            entity = TaskEntity.builder()
+                    .name(task.getName())
+                    .description(task.getDescription())
+                    .taskDate(task.getTaskDate())
+                    .build();
+        }
+
+        entity.setTag(tag);
+        entity.setType(type);
+
+        return taskRepository.save(entity).getId();
     }
 
     @Override
     public void delete(Long id) {
         if (!taskRepository.existsById(id)) {
-            throw new EntityNotFoundException("Task not found with id: " + id);
+            throw new EntityNotFoundException("Задача с id: " + id + " не найдена.");
         }
         taskRepository.deleteById(id);
     }
@@ -66,29 +103,12 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public List<GetTaskInfo> getTasksByDateSortedByPriority(LocalDate date) {
         if (date == null) {
-            throw new IllegalArgumentException("Date parameter cannot be null");
+            throw new IllegalArgumentException("Дата не может быть пустой");
         }
 
         return taskRepository.findByTaskDateOrderByTypePriority(date).stream()
                 .map(this::convertToGetTaskInfo)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Преобразует модель задачи в сущность.
-     *
-     * @param model модель задачи
-     * @return сущность задачи
-     */
-    private TaskEntity convertToEntity(TaskModel model) {
-        return TaskEntity.builder()
-                .id(model.getId())
-                .name(model.getName())
-                .description(model.getDescription())
-                .taskDate(model.getTaskDate())
-                .tag(model.getTagId() != null ?
-                        TagEntity.builder().id(model.getTagId()).build() : null)
-                .build();
     }
 
     /**
@@ -120,7 +140,7 @@ public class TaskServiceImpl implements TaskService {
                 .name(entity.getName())
                 .description(entity.getDescription())
                 .taskDate(entity.getTaskDate())
-                .typeTitle(entity.getType() != null ? entity.getType().getTitle() : "No type")
+                .typeTitle(entity.getType() != null ? entity.getType().getTitle() : "Нет типа")
                 .build();
     }
 }

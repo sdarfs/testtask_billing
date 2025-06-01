@@ -75,7 +75,8 @@ public class TaskController {
      * @return созданная задача
      */
     @Operation(summary = "Создать или обновить задачу",
-            description = "Создает новую задачу или обновляет существующую",
+            description = "Создает новую задачу или обновляет существующую. Для создания новой задачи id должен отсутствовать, " +
+                    "для обновления - должен присутствовать.",
             responses = {
                     @ApiResponse(responseCode = "201", description = "Задача успешно создана/обновлена"),
                     @ApiResponse(responseCode = "500", description = "Ошибка сервера.")
@@ -107,7 +108,7 @@ public class TaskController {
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteTask(@PathVariable("id") Long id) {
         taskService.delete(id);
-        return new ResponseEntity<>("Task with ID " + id + " was successfully deleted", HttpStatus.OK);
+        return new ResponseEntity<>("Задача с  ID " + id + " была удалена", HttpStatus.OK);
     }
 
     /**

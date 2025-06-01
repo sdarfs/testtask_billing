@@ -2,9 +2,7 @@ package com.billing.testtask.controller;
 
 import com.billing.testtask.dto.TagWithTask;
 import com.billing.testtask.entity.TagEntity;
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -27,8 +25,6 @@ import java.util.List;
  * REST контроллер для управления тегами задач.
  * Предоставляет CRUD операции и дополнительные методы для работы с тегами.
  */
-@OpenAPIDefinition(
-        info = @Info(title = "Spring OpenAPI example", version = "1.0.0"))
 @RestController
 @RequestMapping("/api/tags")
 @Tag(name = "Tag API", description = "Операции с тегами")

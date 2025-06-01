@@ -1,6 +1,8 @@
 package com.billing.testtask.entity;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import lombok.*;
 
 import jakarta.persistence.*;
@@ -16,6 +18,9 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "type")
+@JsonIdentityInfo(
+        generator = ObjectIdGenerators.PropertyGenerator.class,
+        property = "id")
 public class TypeEntity {
     /**
      * Идентификатор тега
