@@ -1,5 +1,6 @@
 package com.billing.testtask.entity;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import lombok.*;
 
@@ -38,5 +39,6 @@ public class TagEntity {
      * Связь с таблицей задач в отношении один ко многим
      */
     @OneToMany(mappedBy = "tag", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<TaskEntity> tasks;
 }

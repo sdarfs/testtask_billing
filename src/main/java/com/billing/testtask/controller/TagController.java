@@ -91,7 +91,7 @@ public class TagController {
                     @ApiResponse(responseCode = "404", description = "Тег не найден")
             })
     @DeleteMapping("/tag/{id}")
-    public ResponseEntity<String> deleteTask(@PathVariable("id") Long id) {
+    public ResponseEntity<String> deleteTag(@PathVariable("id") Long id) {
         tagService.delete(id);
         return new ResponseEntity<>("Tag was successful deleted!", HttpStatus.OK);
     }
