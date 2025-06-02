@@ -139,8 +139,3 @@ GET /api/tasks?date=2023-12-31
 
 ### Тестирование
 - Покрытие unit-тестами (JUnit, Mockito)
-
-## Контакты
-
-Для вопросов и предложений обращайтесь:  
-[email@example.com](mailto:email@example.com)
