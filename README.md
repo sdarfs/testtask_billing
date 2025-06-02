@@ -138,4 +138,4 @@ GET /api/tasks?date=2023-12-31
 - Поддержка HTTPS
 
 ### Тестирование
-- Покрытие unit-тестами (JUnit, Mockito)
+- Покрытие unit-тестами (JUnit)
