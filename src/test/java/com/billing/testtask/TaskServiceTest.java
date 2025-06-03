@@ -13,18 +13,33 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
 
-
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Интеграционные тесты для {@link TaskServiceImpl}.
+ * Тестирует основные CRUD операции и дополнительные функции сервиса задач.
+ * Использует тестовую базу данных с автоматической откаткой изменений после каждого теста.
+ */
 @SpringBootTest
 @Transactional
+@AutoConfigureMockMvc
 class TaskServiceTest {
+
+    @Autowired
+    private MockMvc mockMvc;
 
     @Autowired
     private TaskServiceImpl taskService;
@@ -41,6 +56,13 @@ class TaskServiceTest {
     private TagEntity testTag;
     private TypeEntity testType;
 
+    /**
+     * Инициализация тестовых данных перед каждым тестом.
+     * <p>
+     * Очищает базу данных и создает тестовые сущности:
+     * - Тег (TagEntity)
+     * - Тип задачи (TypeEntity)
+     */
     @BeforeEach
     void setUp() {
         // Очистка данных перед каждым тестом
@@ -63,6 +85,12 @@ class TaskServiceTest {
         );
     }
 
+    /**
+     * Тестирует сохранение задачи без указания типа.
+     * <p>
+     * Ожидается, что метод save() выбросит IllegalArgumentException
+     * с сообщением "Тип задачи обязателен".
+     */
     @Test
     @DisplayName("Сохранение задачи без типа - должно вызывать исключение")
     void save_ShouldThrowExceptionWhenTypeIsNull() {
@@ -80,6 +108,11 @@ class TaskServiceTest {
         assertEquals("Тип задачи обязателен", exception.getMessage());
     }
 
+    /**
+     * Тестирует сохранение задачи с несуществующим типом.
+     * <p>
+     * Ожидается, что метод save() выбросит EntityNotFoundException.
+     */
     @Test
     @DisplayName("Сохранение задачи с несуществующим типом - должно вызывать исключение")
     void save_ShouldThrowExceptionWhenTypeNotFound() {
@@ -90,6 +123,14 @@ class TaskServiceTest {
                 () -> taskService.save(model));
     }
 
+    /**
+     * Тестирует успешное сохранение задачи с корректными данными.
+     * <p>
+     * Проверяет:
+     * - Возвращаемый ID не null
+     * - Сохраненные данные соответствуют переданным
+     * - Связи с тегом и типом установлены правильно
+     */
     @Test
     @DisplayName("Сохранение задачи с корректными данными - успешный сценарий")
     void save_ShouldSuccessfullySaveTask() {
@@ -104,6 +145,13 @@ class TaskServiceTest {
         assertEquals(testType.getId(), savedTask.getType().getId());
     }
 
+    /**
+     * Тестирует обновление существующей задачи.
+     * <p>
+     * Проверяет:
+     * - Возвращаемый ID соответствует ID обновляемой задачи
+     * - Данные задачи были обновлены
+     */
     @Test
     @DisplayName("Обновление существующей задачи")
     void save_ShouldUpdateExistingTask() {
@@ -128,6 +176,11 @@ class TaskServiceTest {
         assertEquals("Updated description", updatedTask.getDescription());
     }
 
+    /**
+     * Тестирует успешное удаление существующей задачи.
+     * <p>
+     * Проверяет, что задача удаляется из базы данных без ошибок.
+     */
     @Test
     @DisplayName("Удаление существующей задачи - успешный сценарий")
     void delete_ShouldDeleteExistingTask() {
@@ -137,12 +190,24 @@ class TaskServiceTest {
         assertFalse(taskRepository.existsById(task.getId()));
     }
 
+    /**
+     * Тестирует попытку удаления несуществующей задачи.
+     * <p>
+     * Ожидается, что метод delete() выбросит EntityNotFoundException.
+     */
     @Test
     @DisplayName("Удаление несуществующей задачи - должно вызывать исключение")
     void delete_ShouldThrowExceptionWhenTaskNotFound() {
         assertThrows(EntityNotFoundException.class, () -> taskService.delete(999L));
     }
 
+    /**
+     * Тестирует получение списка всех задач.
+     * <p>
+     * Проверяет:
+     * - Количество возвращаемых задач соответствует созданным
+     * - Имена задач соответствуют ожидаемым
+     */
     @Test
     @DisplayName("Получение всех задач - возвращает корректный список")
     void getAllTasks_ShouldReturnCorrectList() {
@@ -159,6 +224,11 @@ class TaskServiceTest {
         }
     }
 
+    /**
+     * Тестирует получение списка задач из пустой базы данных.
+     * <p>
+     * Ожидается, что метод вернет пустой список.
+     */
     @Test
     @DisplayName("Получение всех задач из пустой БД - возвращает пустой список")
     void getAllTasks_ShouldReturnEmptyListForEmptyDB() {
@@ -166,7 +236,52 @@ class TaskServiceTest {
         assertTrue(tasks.isEmpty());
     }
 
-    // Вспомогательные методы
+    /**
+     * Тестирует загрузку файла для задачи.
+     * <p>
+     * Проверяет успешную обработку запроса с файлом.
+     * Замокана роль ADMIN.
+     */
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("Загрузка файла - успешный сценарий")
+    void uploadFile_ShouldReturnSuccessMessage() throws Exception {
+        // Подготовка тестового файла
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "test.txt",
+                "text/plain",
+                "Test file content".getBytes()
+        );
+
+        // Выполнение запроса
+        mockMvc.perform(multipart("https://localhost:8443/api/tasks/2/upload")
+                        .file(file)
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Тестирует попытку загрузки без файла.
+     * <p>
+     * Ожидается ответ с кодом ошибки 500 (Internal Server Error).
+     * Замокана роль ADMIN.
+     */
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("Загрузка файла - ошибка при отсутствии файла")
+    void uploadFile_ShouldReturnErrorWhenNoFile() throws Exception {
+        mockMvc.perform(multipart("https://localhost:8443/api/tasks/2/upload")
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(status().isInternalServerError());
+    }
+
+    /**
+     * Создает тестовую модель задачи.
+     *
+     * @param name название задачи
+     * @return созданная модель задачи
+     */
     private TaskModel createTestTaskModel(String name) {
         return TaskModel.builder()
                 .name(name)
@@ -177,6 +292,12 @@ class TaskServiceTest {
                 .build();
     }
 
+    /**
+     * Создает и сохраняет тестовую задачу в базе данных.
+     *
+     * @param name название задачи
+     * @return сохраненная сущность задачи
+     */
     private TaskEntity createAndSaveTestTask(String name) {
         return taskRepository.save(
                 TaskEntity.builder()
