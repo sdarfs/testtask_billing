@@ -19,7 +19,7 @@ import java.util.List;
  * Предоставляет операции для работы с типами задач, включая их получение с различными параметрами сортировки.
  */
 @RestController
-@RequestMapping("/types")
+@RequestMapping("api/types")
 @RequiredArgsConstructor
 @Tag(name = "Type API", description = "Операции с типами задач")
 public class TypeController {

@@ -1,6 +1,7 @@
 package com.billing.testtask.entity;
 
 import com.fasterxml.jackson.annotation.*;
+import jakarta.validation.constraints.FutureOrPresent;
 import lombok.*;
 
 import jakarta.persistence.*;
@@ -42,6 +43,7 @@ public class TaskEntity {
     /**
      * Дата задачи
      */
+    @FutureOrPresent(message = "Дата задачи должна быть сегодня или в будущем")
     @Column(name = "task_date")
     private LocalDate taskDate;
 

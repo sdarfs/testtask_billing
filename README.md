@@ -30,6 +30,7 @@
 ### Тип задачи (Type)
 - Название типа
 - Уровень приоритета
+- Список связанных задач
 
 ## API Endpoints
 
@@ -73,9 +74,9 @@
 ### Настройка
 1. В файле `application.properties` необходимо прописать ссылку на базу данных, username, password:
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/taskdb
-spring.datasource.username=user
-spring.datasource.password=pass
+spring.datasource.url=jdbc:postgresql://localhost:5432/task-manager
+spring.datasource.username=postgres
+spring.datasource.password=postgres
 spring.jpa.hibernate.ddl-auto=update
 ```
 
@@ -92,7 +93,7 @@ docker-compose up -d
 ## Документация API
 
 Документация доступна по адресу:  
-`http://localhost:8443/swagger-ui.html`
+`https://localhost:8443/swagger-ui.html`
 
 ## Тестирование
 
@@ -113,7 +114,7 @@ POST /api/tasks
 
 **Получение задач за дату:**
 ```
-GET /api/tasks?date=2023-12-31
+GET /api/tasks/by-date?date=2023-12-31
 ```
 
 ## Дополнительные возможности
